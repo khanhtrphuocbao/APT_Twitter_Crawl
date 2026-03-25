@@ -1,0 +1,9 @@
+pymongo
+python-dotenv
+snscrape
+beautifulsoup4
+requests
+tika
+watchdog
+elasticsearch
+certifi
