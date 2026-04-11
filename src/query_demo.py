@@ -5,27 +5,29 @@ from elasticsearch import Elasticsearch
 
 load_dotenv()
 
-ES_HOST = os.getenv("ELASTIC_HOST", "http://localhost:9200")
+ES_HOST = os.getenv("ELASTIC_HOST", "https://localhost:9200")
 ES_USER = os.getenv("ELASTIC_USER", "elastic")
 ES_PASSWORD = os.getenv("ELASTIC_PASSWORD", "changeme")
 
 es = Elasticsearch(
     ES_HOST,
+    ca_certs="./data/certs/ca/ca.crt",
     basic_auth=(ES_USER, ES_PASSWORD),
-    verify_certs=False
+    verify_certs=True
 )
 
 query = {
     "query": {
-        "bool": {
-            "must": [
-                {"match": {"normalized_content": "APT"}}
-            ],
-            "must_not": [
-                {"match": {"normalized_content": "APT41"}}
-            ]
-        }
+    "bool": {
+        "must": [{"match": {"content": "APT"}}],
+        "should": [
+            {"match": {"content": "malware"}},
+            {"match": {"content": "attack"}},
+            {"match": {"content": "threat"}},
+        ],
+        "minimum_should_match": 1
     }
+}
 }
 
 resp = es.search(index="tweets_index,reports_index", body=query, size=10)

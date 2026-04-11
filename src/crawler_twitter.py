@@ -1,7 +1,7 @@
 import os
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from pymongo import MongoClient, UpdateOne
 
@@ -87,7 +87,7 @@ def fetch_recent_posts(query: str, limit: int):
                 "like_count": metrics.get("like_count"),
                 "quote_count": metrics.get("quote_count"),
                 "source": "twitter_x_api",
-                "crawled_at": datetime.utcnow()
+                "crawled_at": datetime.now(timezone.utc)
             })
 
             if len(all_docs) >= limit:

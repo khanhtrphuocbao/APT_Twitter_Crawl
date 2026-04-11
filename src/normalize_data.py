@@ -18,33 +18,51 @@ tweets_col = db[TWEETS_COLLECTION]
 reports_col = db[REPORTS_COLLECTION]
 
 def normalize_tweet(text: str) -> str:
+    """Chuẩn hóa nội dung tweet - giữ nguyên hashtag và URL, xóa emoji/ký tự điều khiển."""
     if not text:
         return ""
-    # giữ hashtag, URL, chữ số, chữ cái, khoảng trắng, một số dấu cơ bản
-    text = re.sub(r"[^\w\s#:/\.\-\_\?\=&]", " ", text, flags=re.UNICODE)
+    # Xóa ký tự điều khiển Unicode (nhưng giữ emoji and tiếng nước ngoài)
+    text = re.sub(r"[\x00-\x1F\x7F]", " ", text)
+    # Xóa URL rút gọn (t.co) và URL thô để giảm nhiễu
+    text = re.sub(r"https?://\S+", "", text)
+    # Xóa mention @username
+    text = re.sub(r"@\w+", "", text)
+    # Xóa ký tự $ (dấu tiền - thường dùng cho token crypto như $APT)
+    text = re.sub(r"\$[A-Z]+", "", text)
+    # Gộp khoảng trắng thừa
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
 def normalize_report(text: str) -> str:
+    """Chuẩn hóa nội dung báo cáo PDF - xóa ký tự thừa và ký tự điều khiển."""
     if not text:
         return ""
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    # Xóa ký tự form-feed (\f) và ký tự điều khiển PDF thường gặp
+    text = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", " ", text)
+    # Xóa soft-hyphen (U+00AD) thường xuất hiện khi PDF xuống dòng
+    text = text.replace("\u00ad", "")
+    # Gộp nhiều dòng trắng liên tiếp thành 1 dòng xuống
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Gộp khoảng trắng thừa trên cùng 1 dòng
+    text = re.sub(r"[^\S\n]+", " ", text)
+    return text.strip()
 
 def normalize_collection():
+    from pymongo import UpdateOne
+    
+    tweet_ops = []
     for doc in tweets_col.find({}, {"content": 1}):
         norm = normalize_tweet(doc.get("content", ""))
-        tweets_col.update_one(
-            {"_id": doc["_id"]},
-            {"$set": {"normalized_content": norm}}
-        )
+        tweet_ops.append(UpdateOne({"_id": doc["_id"]}, {"$set": {"normalized_content": norm}}))
+    if tweet_ops:
+        tweets_col.bulk_write(tweet_ops, ordered=False)
 
+    report_ops = []
     for doc in reports_col.find({}, {"content": 1}):
         norm = normalize_report(doc.get("content", ""))
-        reports_col.update_one(
-            {"_id": doc["_id"]},
-            {"$set": {"normalized_content": norm}}
-        )
+        report_ops.append(UpdateOne({"_id": doc["_id"]}, {"$set": {"normalized_content": norm}}))
+    if report_ops:
+        reports_col.bulk_write(report_ops, ordered=False)
 
 if __name__ == "__main__":
     normalize_collection()

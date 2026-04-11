@@ -49,41 +49,34 @@ def process_pdf(path):
         print(f"Already processed: {path}")
         return
 
-    parsed = parser.from_file(path)
-    content = parsed.get("content", "") or ""
-    metadata = parsed.get("metadata", {}) or {}
+    try:
+        # Tăng timeout lên 300 giây để tránh bị văng với các file PDF cực kỳ nặng
+        parsed = parser.from_file(path, requestOptions={'timeout': 300})
+        content = parsed.get("content", "") or ""
+        metadata = parsed.get("metadata", {}) or {}
 
-    doc = {
-        "file_name": os.path.basename(path),
-        "file_path": os.path.abspath(path),
-        "file_hash": h,
-        "content": content,
-        "metadata": metadata,
-        "source": "vxug_report"
-    }
-    reports_col.insert_one(doc)
-    append_processed(h)
-    print(f"Inserted report: {path}")
-
-class PDFHandler(FileSystemEventHandler):
-    def on_created(self, event):
-        if not event.is_directory:
-            time.sleep(1)
-            process_pdf(event.src_path)
+        doc = {
+            "file_name": os.path.basename(path),
+            "file_path": os.path.abspath(path),
+            "file_hash": h,
+            "content": content,
+            "metadata": metadata,
+            "source": "vxug_report"
+        }
+        reports_col.insert_one(doc)
+        append_processed(h)
+        print(f"Inserted report: {path}")
+    except Exception as e:
+        print(f"Error parsing {path}: {e}")
 
 if __name__ == "__main__":
-    # xử lý file cũ trước
-    for fname in os.listdir(REPORTS_DIR):
+    print(f"Bắt đầu trích xuất Text từ các file PDF trong thư mục {REPORTS_DIR}...")
+    
+    # Lấy danh sách tất cả file trong thư mục
+    files = [f for f in os.listdir(REPORTS_DIR) if f.lower().endswith('.pdf')]
+    print(f"Tìm thấy {len(files)} file PDF để xử lý.")
+    
+    for fname in files:
         process_pdf(os.path.join(REPORTS_DIR, fname))
-
-    observer = Observer()
-    observer.schedule(PDFHandler(), REPORTS_DIR, recursive=False)
-    observer.start()
-    print("Watching folder for new PDF files...")
-
-    try:
-        while True:
-            time.sleep(2)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+        
+    print("Hoàn thành trích xuất tất cả các báo cáo PDF!")
