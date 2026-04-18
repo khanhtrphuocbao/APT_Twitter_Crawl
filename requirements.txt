@@ -1,9 +1,12 @@
-pymongo
-python-dotenv
-snscrape
-beautifulsoup4
-requests
-tika
-watchdog
-elasticsearch
-certifi
+# Python version >= 3.9
+beautifulsoup4==4.14.3
+certifi==2025.4.26
+elastic-transport==8.17.1
+elasticsearch==8.19.3
+pymongo==4.16.0
+python-dotenv==1.2.1
+requests==2.32.4
+snscrape==0.7.0.20230622
+tika==3.1.0
+urllib3==2.4.0
+watchdog==6.0.0
